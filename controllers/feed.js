@@ -6,11 +6,23 @@ const Post = require('../models/post');
 const post = require('../models/post');
 
 exports.getPosts = (req,res,next) =>{
+    const currentPage = req.query.page || 1;
+    const perPage = 2;
+    let totalItems;
     Post.find()
-    .then(posts=>{
-        res.status(200).json({posts : posts})
+    .countDocuments()
+    .then(count =>{
+        totalItems = count;
+        return Post.find()
+        .skip((currentPage-1) * perPage)
+        .limit(perPage)
     })
-    .catch(err => {
+    .then(posts=>{
+        res.status(200).json(
+            {posts : posts, 
+            totalItems : totalItems})
+    })
+    .catch(err =>{
         if(!err.statusCode){
             err.statusCode = 500;
         }
@@ -115,6 +127,30 @@ exports.updatePost = (req,res,next) =>{
         next(err);
     })
 };
+
+exports.deletePost = (req,res,next) =>{
+const postId = req.params.postId;
+Post.findById(postId)
+    .then(post =>{
+        if(!post){
+            const error = new Error ('Could not find post.');
+            error.statusCode = 404;
+            throw error;
+        }
+        clearImage(post.imageUrl);
+        return Post.findByIdAndDelete(postId);
+    })
+    .then (result =>{
+        console.log(result);
+        res.status(200).json ({message : 'Post Deleted'})
+    })
+    .catch(err =>{
+        if(!err.statusCode){
+            err.statusCode = 500;
+        }
+        next(err);
+    })
+    }
 
 const clearImage = filePath =>{
  filePath = path.join(__dirname,'..',filePath);
